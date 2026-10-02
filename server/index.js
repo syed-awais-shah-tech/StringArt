@@ -9,6 +9,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import generateRouter from './routes/generate.js';
 import ordersRouter from './routes/orders.js';
+import adminRouter from './routes/admin.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +31,7 @@ app.use('/data', express.static(path.join(__dirname, 'data')));
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api', generateRouter);
 app.use('/api', ordersRouter);
+app.use('/api/admin', adminRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

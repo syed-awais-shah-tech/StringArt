@@ -11,8 +11,22 @@ import PricingPreview from './components/PricingPreview.jsx';
 import FAQ from './components/FAQ.jsx';
 import Footer from './components/Footer.jsx';
 import { useStringArt } from './hooks/useStringArt.js';
+import AdminApp from './admin/AdminApp.jsx';
 
 export default function App() {
+  const [pathname, setPathname] = useState(() => window.location.pathname);
+
+  useEffect(() => {
+    const handlePop = () => setPathname(window.location.pathname);
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
+  // Admin section: protected admin dashboard
+  if (pathname.startsWith('/admin')) {
+    return <AdminApp />;
+  }
+
   const {
     params,
     setParam,
