@@ -43,7 +43,10 @@ export function useStringArt() {
   const [sequenceText, setSequenceText] = useState(null);
   const [sequenceFilename, setSequenceFilename] = useState(null);
   const [orderDraft, setOrderDraft]   = useState(null);
-  const [isOrderPlaced, setIsOrderPlaced] = useState(false);
+  const [viewStep, setViewStep]       = useState('studio'); // 'studio' | 'order-form' | 'order-success'
+  const [submittedOrder, setSubmittedOrder] = useState(null);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [submitOrderError, setSubmitOrderError] = useState(null);
   const abortRef                      = useRef(null);
 
   // ── Parameter updater ───────────────────────────────────────────────────
@@ -69,7 +72,6 @@ export function useStringArt() {
 
       setOrderDraft(draft);
 
-      // Persist in localStorage and sessionStorage for admin / next phases
       if (typeof window !== 'undefined') {
         localStorage.setItem('stringart_pending_order', JSON.stringify(draft));
         localStorage.setItem('stringart_latest_sequence', seqText);
@@ -105,7 +107,10 @@ export function useStringArt() {
     setSequenceText(null);
     setSequenceFilename(null);
     setOrderDraft(null);
-    setIsOrderPlaced(false);
+    setViewStep('studio');
+    setSubmittedOrder(null);
+    setIsSubmittingOrder(false);
+    setSubmitOrderError(null);
     setStatus('idle');
     setError(null);
   }, [cancel]);
@@ -124,7 +129,9 @@ export function useStringArt() {
     setStats(null);
     setSequenceText(null);
     setSequenceFilename(null);
-    setIsOrderPlaced(false);
+    setViewStep('studio');
+    setSubmittedOrder(null);
+    setSubmitOrderError(null);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -158,7 +165,6 @@ export function useStringArt() {
       setSequenceFilename(filename);
 
       // Keep generated sequence internally for admin/order system
-      // (Do NOT automatically expose or download sequence.txt to the customer)
       persistOrderInternally(fileToProcess, data.previewData, data.sequenceText, filename, params);
 
       setStatus('done');
@@ -183,7 +189,8 @@ export function useStringArt() {
     setStats(null);
     setSequenceText(null);
     setSequenceFilename(null);
-    setIsOrderPlaced(false);
+    setViewStep('studio');
+    setSubmittedOrder(null);
     setError(null);
 
     if (autoGenerate) {
@@ -198,17 +205,95 @@ export function useStringArt() {
     selectImage(file, true);
   }, [selectImage]);
 
-  // ── Place Order Action ────────────────────────────────────────────────────
-  const placeOrder = useCallback(() => {
-    if (!orderDraft && previewData && sequenceText) {
-      persistOrderInternally(imageFile, previewData, sequenceText, sequenceFilename, params);
-    }
-    setIsOrderPlaced(true);
-  }, [orderDraft, previewData, sequenceText, imageFile, sequenceFilename, params, persistOrderInternally]);
-
-  const closeOrderModal = useCallback(() => {
-    setIsOrderPlaced(false);
+  // ── Customer Order Navigation ─────────────────────────────────────────────
+  const startOrder = useCallback(() => {
+    setSubmitOrderError(null);
+    setViewStep('order-form');
+    // Scroll to the order form smoothly
+    const el = document.getElementById('preview-studio');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
   }, []);
+
+  const backToPreview = useCallback(() => {
+    setViewStep('studio');
+    const el = document.getElementById('preview-studio');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  // ── Customer Order Submission (Cash on Delivery) ──────────────────────────
+  const submitOrder = useCallback(async (customerData) => {
+    setIsSubmittingOrder(true);
+    setSubmitOrderError(null);
+
+    try {
+      // 1. Get original image data URL
+      let originalImageData = null;
+      if (imageFile) {
+        originalImageData = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(imageFile);
+        });
+      }
+
+      // 2. Capture preview image from canvas
+      let previewImageData = null;
+      const canvas = document.querySelector('canvas.string-canvas');
+      if (canvas) {
+        try {
+          previewImageData = canvas.toDataURL('image/png');
+        } catch (e) {
+          console.warn('Canvas toDataURL warning:', e);
+        }
+      }
+
+      // 3. Assemble payload
+      const payload = {
+        customer: customerData,
+        product: {
+          name: 'Custom Handcrafted String Art (50 cm)',
+          price: 175,
+          currency: 'GBP',
+        },
+        originalImageData,
+        previewImageData,
+        sequenceText,
+        previewMetadata: {
+          totalLines: previewData?.totalLines || stats?.lines || 3000,
+          numNails: params.numNails,
+        },
+      };
+
+      const res = await fetch(`${API_BASE}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to place order.');
+      }
+
+      setSubmittedOrder(data.order);
+      setViewStep('order-success');
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('stringart_last_order', JSON.stringify(data.order));
+      }
+
+      // Scroll to order confirmation
+      const el = document.getElementById('preview-studio');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+      console.error('[useStringArt] Order submission error:', err);
+      setSubmitOrderError(err.message || 'Failed to submit order. Please try again.');
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  }, [imageFile, sequenceText, previewData, stats, params]);
 
   return {
     params,
@@ -227,9 +312,13 @@ export function useStringArt() {
     sequenceText,
     sequenceFilename,
     orderDraft,
-    isOrderPlaced,
-    placeOrder,
-    closeOrderModal,
+    viewStep,
+    submittedOrder,
+    isSubmittingOrder,
+    submitOrderError,
+    startOrder,
+    backToPreview,
+    submitOrder,
     DEFAULT_PARAMS,
   };
 }

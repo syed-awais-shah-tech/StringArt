@@ -27,10 +27,13 @@ export default function App() {
     resetAll,
     previewData,
     stats,
-    orderDraft,
-    isOrderPlaced,
-    placeOrder,
-    closeOrderModal,
+    viewStep,
+    submittedOrder,
+    isSubmittingOrder,
+    submitOrderError,
+    startOrder,
+    backToPreview,
+    submitOrder,
   } = useStringArt();
 
   const [toasts, setToasts] = useState([]);
@@ -94,10 +97,13 @@ export default function App() {
         resetAll={resetAll}
         previewData={previewData}
         stats={stats}
-        orderDraft={orderDraft}
-        isOrderPlaced={isOrderPlaced}
-        placeOrder={placeOrder}
-        closeOrderModal={closeOrderModal}
+        viewStep={viewStep}
+        submittedOrder={submittedOrder}
+        isSubmittingOrder={isSubmittingOrder}
+        submitOrderError={submitOrderError}
+        startOrder={startOrder}
+        backToPreview={backToPreview}
+        submitOrder={submitOrder}
       />
 
       {/* 3. How It Works Section */}
