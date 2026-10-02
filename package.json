@@ -1,0 +1,15 @@
+{
+  "name": "stringart-ern",
+  "version": "1.0.0",
+  "private": true,
+  "description": "StringArt — C++ algorithm ported to Express + React + Node.js ERN stack",
+  "scripts": {
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm run dev",
+    "dev": "start cmd /k \"cd server && npm run dev\" && start cmd /k \"cd client && npm run dev\""
+  },
+  "workspaces": [
+    "server",
+    "client"
+  ]
+}

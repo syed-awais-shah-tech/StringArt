@@ -1,0 +1,296 @@
+/**
+ * CanvasPreview.jsx
+ * HTML5 canvas that animates the string art sequence step-by-step.
+ *
+ * Features:
+ *  - Play / Pause animation
+ *  - Speed control (1× → 100× using batched steps per frame)
+ *  - Step counter
+ *  - Draws nail dots and circular board border
+ *  - requestAnimationFrame loop — no React re-renders inside hot path
+ */
+import React, { useEffect, useRef, useCallback, useState } from 'react';
+
+const NAIL_RADIUS   = 2.5;
+const BOARD_PADDING = 8;   // px inside canvas edge
+const BG_COLOR      = '#ffffff';
+const NAIL_COLOR    = '#c084fc'; // light violet
+
+export default function CanvasPreview({ previewData }) {
+  const canvasRef   = useRef(null);
+  const stateRef    = useRef({
+    playing:      false,
+    stepIdx:      0,
+    speed:        10,      // steps drawn per frame
+    rafId:        null,
+  });
+  const [uiState, setUiState] = useState({ playing: false, stepIdx: 0, total: 0, speed: 10 });
+
+  // ── Draw a single Bresenham line on the canvas ──────────────────────────
+  const drawStep = useCallback((ctx, step, nails, scale) => {
+    // step = [r, g, b, nailIdx]  — but we need prevNailIdx per color
+    // We track prevNails in stateRef
+    const [r, g, b, nailIdx] = step;
+    const key = `${r},${g},${b}`;
+    const prev = stateRef.current.prevNails?.[key];
+    if (prev === undefined) {
+      // first time seeing this color — just record position
+      if (!stateRef.current.prevNails) stateRef.current.prevNails = {};
+      stateRef.current.prevNails[key] = nailIdx;
+      return;
+    }
+
+    const x0 = nails[prev][0] * scale + BOARD_PADDING;
+    const y0 = nails[prev][1] * scale + BOARD_PADDING;
+    const x1 = nails[nailIdx][0] * scale + BOARD_PADDING;
+    const y1 = nails[nailIdx][1] * scale + BOARD_PADDING;
+
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.13)`;
+    ctx.lineWidth   = 0.6;
+    ctx.stroke();
+
+    stateRef.current.prevNails[key] = nailIdx;
+  }, []);
+
+  // ── Initialise canvas when previewData arrives ───────────────────────────
+  useEffect(() => {
+    if (!previewData) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const { nails, width, height, sequence } = previewData;
+
+    // Fit canvas inside its CSS container (max 580px)
+    const containerW = canvas.parentElement?.clientWidth || 580;
+    const containerH = Math.min(containerW, window.innerHeight - 260);
+    const canvasSize  = Math.min(containerW - BOARD_PADDING * 2, containerH);
+
+    canvas.width  = canvasSize;
+    canvas.height = canvasSize;
+    canvas.style.width  = `${canvasSize}px`;
+    canvas.style.height = `${canvasSize}px`;
+
+    const scale = (canvasSize - BOARD_PADDING * 2) / Math.max(width, height);
+
+    // Store scaled data in ref for animation
+    stateRef.current.scale    = scale;
+    stateRef.current.nails    = nails;
+    stateRef.current.sequence = sequence;
+    stateRef.current.stepIdx  = 0;
+    stateRef.current.playing  = false;
+    stateRef.current.prevNails = {};
+
+    const ctx = canvas.getContext('2d');
+
+    // Clear to white
+    ctx.fillStyle = BG_COLOR;
+    ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+    // Draw circular board border
+    const cx = canvasSize / 2;
+    const cy = canvasSize / 2;
+    const r  = (canvasSize - BOARD_PADDING * 2) / 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(99,102,241,0.3)';
+    ctx.lineWidth   = 1;
+    ctx.stroke();
+
+    // Draw nails
+    ctx.fillStyle = NAIL_COLOR;
+    for (const [nx, ny] of nails) {
+      const px = nx * scale + BOARD_PADDING;
+      const py = ny * scale + BOARD_PADDING;
+      ctx.beginPath();
+      ctx.arc(px, py, NAIL_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    stateRef.current.ctx = ctx;
+
+    setUiState((u) => ({ ...u, stepIdx: 0, total: sequence.length, playing: false }));
+  }, [previewData]);
+
+  // ── Animation loop ────────────────────────────────────────────────────────
+  const animate = useCallback(() => {
+    const s = stateRef.current;
+    if (!s.playing || !s.ctx || !s.sequence) return;
+
+    const batchSize = s.speed;
+    for (let i = 0; i < batchSize; i++) {
+      if (s.stepIdx >= s.sequence.length) {
+        s.playing = false;
+        setUiState((u) => ({ ...u, playing: false, stepIdx: s.sequence.length }));
+        return;
+      }
+      drawStep(s.ctx, s.sequence[s.stepIdx], s.nails, s.scale);
+      s.stepIdx++;
+    }
+
+    // Update UI counter at ~10 fps to avoid excessive React renders
+    if (s.stepIdx % (batchSize * 3) === 0 || s.stepIdx >= s.sequence.length) {
+      setUiState((u) => ({ ...u, stepIdx: s.stepIdx }));
+    }
+
+    s.rafId = requestAnimationFrame(animate);
+  }, [drawStep]);
+
+  // ── Controls ──────────────────────────────────────────────────────────────
+  const togglePlay = useCallback(() => {
+    const s = stateRef.current;
+    if (s.stepIdx >= (s.sequence?.length ?? 0)) return; // already done
+
+    s.playing = !s.playing;
+    setUiState((u) => ({ ...u, playing: s.playing }));
+
+    if (s.playing) {
+      cancelAnimationFrame(s.rafId);
+      s.rafId = requestAnimationFrame(animate);
+    }
+  }, [animate]);
+
+  const resetCanvas = useCallback(() => {
+    const s = stateRef.current;
+    cancelAnimationFrame(s.rafId);
+    s.playing  = false;
+    s.stepIdx  = 0;
+    s.prevNails = {};
+
+    if (!s.ctx || !previewData) return;
+    const { nails, width, height } = previewData;
+    const canvas = canvasRef.current;
+    const canvasSize = canvas.width;
+    const scale = s.scale;
+
+    s.ctx.fillStyle = BG_COLOR;
+    s.ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+    const cx = canvasSize / 2;
+    const cy = canvasSize / 2;
+    const r  = (canvasSize - BOARD_PADDING * 2) / 2;
+    s.ctx.beginPath();
+    s.ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    s.ctx.strokeStyle = 'rgba(99,102,241,0.3)';
+    s.ctx.lineWidth   = 1;
+    s.ctx.stroke();
+
+    s.ctx.fillStyle = NAIL_COLOR;
+    for (const [nx, ny] of nails) {
+      s.ctx.beginPath();
+      s.ctx.arc(nx * scale + BOARD_PADDING, ny * scale + BOARD_PADDING, NAIL_RADIUS, 0, Math.PI * 2);
+      s.ctx.fill();
+    }
+
+    setUiState((u) => ({ ...u, playing: false, stepIdx: 0 }));
+  }, [previewData]);
+
+  const setSpeed = useCallback((v) => {
+    stateRef.current.speed = parseInt(v);
+    setUiState((u) => ({ ...u, speed: parseInt(v) }));
+  }, []);
+
+  // ── Draw ALL instantly ────────────────────────────────────────────────────
+  const drawAll = useCallback(() => {
+    const s = stateRef.current;
+    cancelAnimationFrame(s.rafId);
+    s.playing = false;
+
+    if (!s.ctx || !s.sequence) return;
+
+    // Reset first
+    resetCanvas();
+
+    // tiny delay to let the reset paint
+    setTimeout(() => {
+      const { sequence, nails, scale, ctx } = stateRef.current;
+      stateRef.current.prevNails = {};
+      for (let i = 0; i < sequence.length; i++) {
+        drawStep(ctx, sequence[i], nails, scale);
+      }
+      stateRef.current.stepIdx = sequence.length;
+      setUiState((u) => ({ ...u, playing: false, stepIdx: sequence.length }));
+    }, 30);
+  }, [resetCanvas, drawStep]);
+
+  // Cleanup RAF on unmount
+  useEffect(() => () => cancelAnimationFrame(stateRef.current.rafId), []);
+
+  if (!previewData) {
+    return (
+      <div className="canvas-wrap">
+        <div className="canvas-empty">
+          <span className="canvas-empty-icon">🎨</span>
+          <span>Generate string art to see the preview here</span>
+        </div>
+      </div>
+    );
+  }
+
+  const pct = uiState.total > 0 ? (uiState.stepIdx / uiState.total) * 100 : 0;
+
+  return (
+    <div className="canvas-section">
+      <div className="canvas-wrap">
+        <canvas ref={canvasRef} className="string-canvas" />
+      </div>
+
+      {/* Progress bar */}
+      <div className="progress-bar-track">
+        <div className="progress-bar-fill" style={{ width: `${pct.toFixed(1)}%` }} />
+      </div>
+
+      {/* Controls */}
+      <div className="canvas-controls">
+        <div className="canvas-controls-left">
+          <button
+            id="btn-play-pause"
+            className="btn btn-primary"
+            onClick={togglePlay}
+            disabled={uiState.stepIdx >= uiState.total}
+            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+          >
+            {uiState.playing ? '⏸ Pause' : '▶ Play'}
+          </button>
+          <button
+            id="btn-reset"
+            className="btn btn-secondary"
+            onClick={resetCanvas}
+            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+          >
+            ↺ Reset
+          </button>
+          <button
+            id="btn-draw-all"
+            className="btn btn-secondary"
+            onClick={drawAll}
+            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+          >
+            ⚡ Show All
+          </button>
+        </div>
+
+        <div className="canvas-controls-right">
+          <span className="speed-label">Speed</span>
+          <input
+            type="range"
+            className="slider"
+            min={1}
+            max={200}
+            step={1}
+            value={uiState.speed}
+            onChange={(e) => setSpeed(e.target.value)}
+            style={{ width: 90, '--fill-pct': `${((uiState.speed - 1) / 199) * 100}%` }}
+            title={`${uiState.speed}× speed`}
+          />
+          <span className="canvas-step-label">
+            {uiState.stepIdx.toLocaleString()} / {uiState.total.toLocaleString()} lines
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
