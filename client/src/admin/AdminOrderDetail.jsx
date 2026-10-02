@@ -93,14 +93,11 @@ export default function AdminOrderDetail({ orderId }) {
     }
   };
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-PK', {
-      style: 'currency',
-      currency: 'PKR',
-      maximumFractionDigits: 0,
-    })
-      .format(price || 0)
-      .replace('PKR', 'Rs.');
+  const formatPrice = (price, currency = order?.product?.currency || 'GBP') => {
+    if (currency === 'PKR') {
+      return `Rs. ${Number(price || 0).toLocaleString()}`;
+    }
+    return `£${Number(price || 0).toLocaleString()}`;
   };
 
   const formatDate = (isoString) => {

@@ -105,6 +105,8 @@ export default function Footer() {
             <a href="#how-it-works" className="legal-link">Process</a>
             <span>·</span>
             <a href="#faq" className="legal-link">FAQ</a>
+            <span>·</span>
+            <a href="/admin" className="legal-link" title="Store & Workshop Admin Portal">Admin Login</a>
           </div>
         </div>
       </div>

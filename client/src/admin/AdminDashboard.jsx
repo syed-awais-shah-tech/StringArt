@@ -46,14 +46,11 @@ export default function AdminDashboard({ onStatsUpdate }) {
     };
   }, [authFetch, onStatsUpdate]);
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-PK', {
-      style: 'currency',
-      currency: 'PKR',
-      maximumFractionDigits: 0,
-    })
-      .format(price || 0)
-      .replace('PKR', 'Rs.');
+  const formatPrice = (price, currency = 'GBP') => {
+    if (currency === 'PKR') {
+      return `Rs. ${Number(price || 0).toLocaleString()}`;
+    }
+    return `£${Number(price || 0).toLocaleString()}`;
   };
 
   const formatDate = (isoString) => {
@@ -271,7 +268,7 @@ export default function AdminDashboard({ onStatsUpdate }) {
                     </td>
                     <td>
                       <strong className="order-price">
-                        {formatPrice(ord.product?.price)}
+                        {formatPrice(ord.product?.price, ord.product?.currency)}
                       </strong>
                     </td>
                     <td>

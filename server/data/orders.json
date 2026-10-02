@@ -57,5 +57,35 @@
       "boardSize": "50 cm circular",
       "numNails": 200
     }
+  },
+  {
+    "orderNumber": "SA-1003",
+    "createdAt": "2026-10-02T19:12:58.282Z",
+    "customer": {
+      "fullName": "Dr. Sarah Connor",
+      "email": "sarah.connor@example.com",
+      "phone": "+44 7700 900456",
+      "address": "221B Baker Street, Suite 4",
+      "city": "London"
+    },
+    "product": {
+      "name": "Custom Handcrafted String Art (50 cm)",
+      "price": 175,
+      "currency": "GBP"
+    },
+    "paymentMethod": "COD",
+    "paymentStatus": "paid",
+    "orderStatus": "shipped",
+    "files": {
+      "originalImage": "orders/SA-1003-original.png",
+      "previewImage": "orders/SA-1003-preview.png",
+      "sequenceFile": "orders/SA-1003-sequence.txt"
+    },
+    "metadata": {
+      "totalLines": 300,
+      "boardSize": "50 cm circular",
+      "numNails": 200
+    },
+    "updatedAt": "2026-10-02T19:12:58.342Z"
   }
 ]
