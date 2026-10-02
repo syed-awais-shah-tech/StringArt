@@ -17,7 +17,7 @@ export default function PricingPreview({ onCtaClick }) {
         <h2 className="section-title">Art, Kits & Digital Patterns</h2>
         <p className="section-subtitle">
           Choose between a fully finished handcrafted piece delivered ready to hang,
-          a complete DIY kit, or digital nail sequences for makers.
+          a complete DIY kit, or an instant free digital preview.
         </p>
       </div>
 
@@ -89,26 +89,26 @@ export default function PricingPreview({ onCtaClick }) {
           </div>
         </div>
 
-        {/* Card 3: Digital Instructions */}
+        {/* Card 3: Free Digital Preview */}
         <div className="pricing-card">
           <div className="pricing-header">
             <span className="badge-digital">Instant Access</span>
-            <h3 className="pricing-tier-name">Digital Sequence</h3>
+            <h3 className="pricing-tier-name">Free Digital Preview</h3>
             <div className="pricing-price">
               <span className="currency">£</span>
               <span className="amount">0</span>
-              <span className="period">/ free preview</span>
+              <span className="period">/ unlimited</span>
             </div>
             <p className="pricing-desc">
-              Generate and download the numerical nail sequence directly from our web tool.
+              Generate an instant high-fidelity string art preview from any photo directly in your browser.
             </p>
           </div>
 
           <ul className="pricing-features">
-            <li>✓ Full step-by-step nail index sequence (.txt)</li>
-            <li>✓ Printable 200-nail circular angle template</li>
-            <li>✓ High-resolution digital simulation</li>
-            <li>✓ Compatible with DIY setups and CNC winders</li>
+            <li>✓ Full high-resolution string simulation</li>
+            <li>✓ Side-by-side original photo comparison</li>
+            <li>✓ Automated thread path balancing</li>
+            <li>✓ Save design for handcrafted ordering</li>
           </ul>
 
           <div className="pricing-cta-wrap">
@@ -116,9 +116,9 @@ export default function PricingPreview({ onCtaClick }) {
               className="btn btn-secondary-light w-full"
               onClick={scrollToStudio}
             >
-              Generate Free Sequence
+              Preview Your Photo Free
             </button>
-            <span className="pricing-subtext">Instant download · No registration</span>
+            <span className="pricing-subtext">Instant generator · No account required</span>
           </div>
         </div>
       </div>

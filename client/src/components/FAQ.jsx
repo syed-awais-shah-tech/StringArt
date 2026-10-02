@@ -18,23 +18,23 @@ export default function FAQ() {
     },
     {
       q: 'How does the free online preview work?',
-      a: 'Our preview generator runs our string art algorithm directly on your uploaded image. It simulates the exact path of 3,000+ thread lines connecting 200 perimeter nails so you can see precisely how the finished piece will look before any physical wood or thread is used.',
+      a: 'Our preview generator calculates the exact continuous thread paths across perimeter pins directly from your uploaded image. It simulates the tension and optical density of thousands of thread lines so you can see precisely how your handcrafted finished piece will look.',
     },
     {
-      q: 'What is inside the downloadable sequence file (.txt)?',
-      a: 'The sequence text file contains the exact numerical order of nail connections (e.g. nail 12 to 148, then to 33, etc.) computed for your image. You can use this file as an exact blueprint to weave the artwork by hand at home or connect it to an automated string-winding machine.',
+      q: 'How is my string art created from the preview?',
+      a: 'When you place your order, our system captures the complete thread path blueprint required to weave your portrait. Our master craftspeople then physically tension and wind high-strength continuous thread across every perimeter pin to match your preview.',
     },
     {
       q: 'Can I choose color threads or is it always black thread?',
-      a: 'Our algorithm supports both! The classic monochrome style uses a single high-strength black thread against a white circular background for maximum contrast. The color mode weaves multiple complementary color threads to introduce warm and cool tonal depths.',
+      a: 'The classic monochrome style uses a single high-strength black thread against a white circular background for maximum contrast and timeless elegance. We also offer curated thread palettes for custom commissions upon request.',
     },
     {
       q: 'How big is the physical artwork and does it arrive ready to hang?',
       a: 'Physical custom pieces are created on a 50cm (approx. 20-inch) circular Baltic birch board, finished with 200 precision perimeter pins. Every piece arrives fully assembled and threaded, complete with integrated wall mounting hardware on the back.',
     },
     {
-      q: 'Do I need an account or login to use the tool?',
-      a: 'No. You can upload photos, generate previews, and download your sequence instructions completely free without creating an account or providing an email.',
+      q: 'Do I need an account or login to preview my photo?',
+      a: 'No. You can upload photos, generate instant previews, and start your order completely free without creating an account or providing a password.',
     },
   ];
 

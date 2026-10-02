@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import CompareSlider from './CompareSlider.jsx';
 import CanvasPreview from './CanvasPreview.jsx';
 
 /**
- * HeroGenerator
- * Customer-facing hero section with instant string art previewer inspired by stringboard.co.uk.
+ * HeroGenerator.jsx
+ * Customer-Facing String Art Generator Flow:
+ * Upload photo → Generate → See result → Place Order
  */
 export default function HeroGenerator({
   params,
@@ -12,41 +13,23 @@ export default function HeroGenerator({
   imageFile,
   imagePreviewUrl,
   onSelectImage,
+  uploadAndGenerate,
   status,
   error,
   generate,
   cancel,
-  downloadSequence,
+  resetAll,
   previewData,
   stats,
+  orderDraft,
+  isOrderPlaced,
+  placeOrder,
+  closeOrderModal,
 }) {
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [activePreset, setActivePreset] = useState('mono'); // 'mono' or 'color'
   const fileInputRef = useRef(null);
 
   const isRunning = status === 'running';
   const isDone = status === 'done' && previewData;
-
-  // Handle Preset change
-  const handlePresetSelect = (preset) => {
-    setActivePreset(preset);
-    if (preset === 'mono') {
-      setParam('featureHighlight', 'mono');
-      setParam('colors', [[0, 0, 0]]);
-    } else {
-      setParam('featureHighlight', 'none');
-      setParam('colors', [
-        [0, 0, 0],
-        [255, 255, 255],
-        [255, 0, 0],
-        [0, 255, 0],
-        [0, 0, 255],
-        [255, 0, 255],
-        [0, 255, 255],
-        [255, 255, 0],
-      ]);
-    }
-  };
 
   // Helper to load sample image directly into engine
   const handleLoadSample = async (type = 'portrait') => {
@@ -56,7 +39,11 @@ export default function HeroGenerator({
       const response = await fetch(src);
       const blob = await response.blob();
       const file = new File([blob], filename, { type: blob.type || 'image/png' });
-      onSelectImage(file);
+      if (uploadAndGenerate) {
+        uploadAndGenerate(file);
+      } else {
+        onSelectImage(file, true);
+      }
     } catch (e) {
       console.error('Failed to load sample image', e);
     }
@@ -65,14 +52,30 @@ export default function HeroGenerator({
   const handleFileInput = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      onSelectImage(file);
+      if (uploadAndGenerate) {
+        uploadAndGenerate(file);
+      } else {
+        onSelectImage(file, true);
+      }
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      if (uploadAndGenerate) {
+        uploadAndGenerate(file);
+      } else {
+        onSelectImage(file, true);
+      }
     }
   };
 
   return (
     <section className="hero-section" id="preview-studio">
       <div className="hero-container">
-        {/* Hero Copy */}
+        {/* Hero Header Copy */}
         <div className="hero-header-text">
           <div className="hero-pill-badge">
             <span className="hero-pill-dot"></span>
@@ -80,23 +83,27 @@ export default function HeroGenerator({
           </div>
           <h1 className="hero-title">Turn your photo into string art</h1>
           <p className="hero-subtitle">
-            Upload any photo of a pet, person, or cherished memory. Our custom engine calculates
-            over 3,000 continuous thread paths across 200 perimeter nails to weave a striking art piece without ink or paint.
+            Upload any portrait of a pet, partner, or cherished memory. Our studio engine transforms your image into thousands of continuous tensioned thread paths across a circular wooden board.
           </p>
         </div>
 
         {/* Generator Studio Card */}
         <div className="generator-card">
-          {/* Stepper Header */}
-          <div className="stepper-nav">
+          {/* Stepper Header: Upload → Generate → Preview & Order */}
+          <div className="stepper-nav" aria-label="Order Progress">
             <div className="stepper-track"></div>
+
+            {/* Step 1: Upload */}
             <div className="stepper-step">
-              <div className={`stepper-node ${!imageFile && !isDone ? 'active' : 'completed'}`}>
-                {!imageFile && !isDone ? '1' : '✓'}
+              <div className={`stepper-node ${!imageFile && !isDone && !isRunning ? 'active' : 'completed'}`}>
+                {!imageFile && !isDone && !isRunning ? '1' : '✓'}
               </div>
-              <span className={`stepper-label ${!imageFile && !isDone ? 'active' : ''}`}>1. Upload</span>
+              <span className={`stepper-label ${!imageFile && !isDone && !isRunning ? 'active' : ''}`}>
+                1. Upload Photo
+              </span>
             </div>
 
+            {/* Step 2: Generate */}
             <div className="stepper-step">
               <div
                 className={`stepper-node ${
@@ -111,40 +118,54 @@ export default function HeroGenerator({
                   '2'
                 )}
               </div>
-              <span className={`stepper-label ${isRunning ? 'active' : ''}`}>2. Generate</span>
+              <span className={`stepper-label ${isRunning ? 'active' : ''}`}>
+                2. Generate
+              </span>
             </div>
 
+            {/* Step 3: Result & Order */}
             <div className="stepper-step">
               <div className={`stepper-node ${isDone ? 'active completed' : ''}`}>
                 {isDone ? '★' : '3'}
               </div>
-              <span className={`stepper-label ${isDone ? 'active' : ''}`}>3. Preview</span>
+              <span className={`stepper-label ${isDone ? 'active' : ''}`}>
+                3. Preview & Order
+              </span>
             </div>
           </div>
 
           {/* Error Message */}
           {error && (
-            <div className="studio-alert error">
+            <div className="studio-alert error" role="alert">
               <span className="studio-alert-icon">⚠️</span>
-              <div>
-                <strong>Generation Notice:</strong> {error}
+              <div className="studio-alert-content">
+                <strong>Notice:</strong> {error}
+                <button
+                  type="button"
+                  className="btn-alert-retry"
+                  onClick={() => resetAll ? resetAll() : onSelectImage(null)}
+                >
+                  Try another photo
+                </button>
               </div>
             </div>
           )}
 
-          {/* ── STATE 1: No photo uploaded yet ── */}
-          {!imageFile && !isDone && (
+          {/* ══════════════════════════════════════════════════════════════
+              STATE 1: Upload Photo (Idle / No photo processing)
+              ══════════════════════════════════════════════════════════════ */}
+          {!imageFile && !isRunning && !isDone && (
             <div className="studio-idle-view">
-              {/* Interactive Before/After Preview */}
+              {/* Interactive Before/After Preview Demo */}
               <div className="studio-hero-preview">
                 <CompareSlider
                   originalSrc="/gallery/dog_original.jpg"
                   stringArtSrc="/gallery/dog_stringart.jpg"
-                  originalLabel="Original Dog Photo"
+                  originalLabel="Original Photo"
                   stringArtLabel="Woven String Art"
                 />
                 <span className="preview-caption">
-                  Drag the slider to compare original photo vs string art piece
+                  Drag the slider to preview the transformation
                 </span>
               </div>
 
@@ -154,7 +175,7 @@ export default function HeroGenerator({
                   ref={fileInputRef}
                   id="hero-file-input"
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleFileInput}
                   style={{ display: 'none' }}
                 />
@@ -163,12 +184,7 @@ export default function HeroGenerator({
                   htmlFor="hero-file-input"
                   className="upload-drop-target"
                   onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (e.dataTransfer.files?.[0]) {
-                      onSelectImage(e.dataTransfer.files[0]);
-                    }
-                  }}
+                  onDrop={handleDrop}
                 >
                   <div className="upload-icon-circle">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
@@ -189,13 +205,13 @@ export default function HeroGenerator({
                   </div>
                   <span className="upload-main-text">Upload your photo</span>
                   <span className="upload-sub-text">
-                    JPEG, PNG, or WEBP · Processed safely on device
+                    Drag & drop or click to choose · JPG, PNG, WEBP
                   </span>
                 </label>
 
-                {/* Example Photo Triggers */}
+                {/* Example Photo Shortcuts */}
                 <div className="sample-triggers">
-                  <span className="sample-triggers-label">Or try an example:</span>
+                  <span className="sample-triggers-label">Or test with an example portrait:</span>
                   <div className="sample-buttons">
                     <button
                       type="button"
@@ -210,248 +226,329 @@ export default function HeroGenerator({
                       className="btn-sample"
                       onClick={() => handleLoadSample('portrait')}
                     >
-                      <img src="/gallery/input.png" alt="Portrait Sample" className="sample-thumb" />
+                      <img src="/gallery/input.png" alt="Portrait Model" className="sample-thumb" />
                       Portrait Model
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Photo Advice Tip */}
+              {/* Helpful Recommendation */}
               <div className="studio-tip-card">
                 <span className="studio-tip-icon">📸</span>
                 <div className="studio-tip-body">
                   <div className="studio-tip-title">Photo recommendation</div>
                   <div className="studio-tip-desc">
-                    High-contrast portraits with good lighting and simple, clutter-free backgrounds produce the crispest string art definition.
+                    Close-up portraits of people or pets with clear lighting and simple backgrounds produce the most striking string art definition.
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── STATE 2: Image is loaded, ready to configure and generate ── */}
-          {imageFile && !isDone && (
-            <div className="studio-config-view">
-              {/* Image Preview & Change */}
+          {/* ══════════════════════════════════════════════════════════════
+              STATE 2: Clean Loading / Generating State
+              ══════════════════════════════════════════════════════════════ */}
+          {isRunning && (
+            <div className="studio-generating-card">
+              <div className="generating-visual">
+                {/* Uploaded image thumbnail with animated tension ring */}
+                <div className="generating-thumb-box">
+                  {imagePreviewUrl ? (
+                    <img src={imagePreviewUrl} alt="Your uploaded portrait" className="generating-thumb-img" />
+                  ) : (
+                    <div className="generating-thumb-placeholder">📷</div>
+                  )}
+                  <div className="generating-spinner-ring"></div>
+                </div>
+
+                <div className="generating-status-info">
+                  <h3 className="generating-headline">Weaving your string art preview…</h3>
+                  <p className="generating-subline">
+                    Tracing continuous thread paths and balancing highlight & shadow depths for your portrait.
+                  </p>
+                  <div className="generating-time-indicator">
+                    <span className="pulsing-dot"></span>
+                    <span>Usually takes 5–8 seconds</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="generating-action-row">
+                <button
+                  type="button"
+                  className="btn btn-secondary-light btn-sm"
+                  onClick={cancel}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════
+              STATE 2.1: Cancelled fallback (image present, not running, no result)
+              ══════════════════════════════════════════════════════════════ */}
+          {imageFile && !isRunning && !isDone && (
+            <div className="studio-ready-view">
               <div className="selected-photo-card">
                 <div className="selected-photo-preview">
-                  <img src={imagePreviewUrl} alt="Selected source" />
+                  <img src={imagePreviewUrl} alt="Selected photo" />
                 </div>
                 <div className="selected-photo-details">
                   <div className="selected-photo-name">{imageFile.name}</div>
                   <div className="selected-photo-size">
-                    {(imageFile.size / 1024).toFixed(1)} KB · Ready for threading
+                    Ready to generate custom string art
                   </div>
-                  <label htmlFor="hero-file-input" className="btn-link-action">
-                    Replace photo
-                  </label>
-                </div>
-              </div>
-
-              {/* Simplified Style Selector */}
-              <div className="style-selector-group">
-                <label className="group-label">Thread Style</label>
-                <div className="style-options-grid">
                   <button
                     type="button"
-                    className={`style-option-card ${activePreset === 'mono' ? 'selected' : ''}`}
-                    onClick={() => handlePresetSelect('mono')}
+                    className="btn-link-action"
+                    onClick={resetAll}
                   >
-                    <div className="style-option-indicator">
-                      <span className="style-swatch-mono"></span>
-                    </div>
-                    <div className="style-option-info">
-                      <div className="style-option-title">Monochrome Classic</div>
-                      <div className="style-option-sub">
-                        Single high-tension black thread (Recommended)
-                      </div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    className={`style-option-card ${activePreset === 'color' ? 'selected' : ''}`}
-                    onClick={() => handlePresetSelect('color')}
-                  >
-                    <div className="style-option-indicator">
-                      <span className="style-swatch-color"></span>
-                    </div>
-                    <div className="style-option-info">
-                      <div className="style-option-title">Color Threads</div>
-                      <div className="style-option-sub">
-                        Multi-color thread palette for depth and warmth
-                      </div>
-                    </div>
+                    Choose another photo
                   </button>
                 </div>
               </div>
 
-              {/* Optional Collapsible Settings */}
-              <div className="advanced-settings-toggle">
+              <div className="ready-action-box">
                 <button
                   type="button"
-                  className="btn-accordion-toggle"
-                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  id="btn-trigger-generate"
+                  className="btn btn-primary-dark btn-hero-generate"
+                  onClick={() => generate()}
                 >
-                  <span>{showAdvanced ? '▼' : '▶'} Advanced Weaving Parameters</span>
-                  <span className="badge-tag">Optional</span>
+                  <span>🧵 Generate String Art Preview</span>
                 </button>
-
-                {showAdvanced && (
-                  <div className="advanced-settings-panel">
-                    <div className="param-item">
-                      <div className="param-item-header">
-                        <label htmlFor="slider-nails">Boundary Nails</label>
-                        <span className="param-val">{params.numNails}</span>
-                      </div>
-                      <input
-                        id="slider-nails"
-                        type="range"
-                        min="100"
-                        max="360"
-                        step="10"
-                        value={params.numNails}
-                        onChange={(e) => setParam('numNails', parseInt(e.target.value))}
-                        className="studio-slider"
-                      />
-                      <span className="param-hint">More nails provide finer facial curve accuracy.</span>
-                    </div>
-
-                    <div className="param-item">
-                      <div className="param-item-header">
-                        <label htmlFor="slider-lines">Thread Lines (Density)</label>
-                        <span className="param-val">{params.maxIterations}</span>
-                      </div>
-                      <input
-                        id="slider-lines"
-                        type="range"
-                        min="1500"
-                        max="5000"
-                        step="250"
-                        value={params.maxIterations}
-                        onChange={(e) => setParam('maxIterations', parseInt(e.target.value))}
-                        className="studio-slider"
-                      />
-                      <span className="param-hint">3,000–4,000 lines is optimal for dark shades.</span>
-                    </div>
-
-                    <div className="param-item">
-                      <div className="param-item-header">
-                        <label htmlFor="slider-contrast">Image Contrast</label>
-                        <span className="param-val">{params.contrast.toFixed(1)}x</span>
-                      </div>
-                      <input
-                        id="slider-contrast"
-                        type="range"
-                        min="0.5"
-                        max="2.5"
-                        step="0.1"
-                        value={params.contrast}
-                        onChange={(e) => setParam('contrast', parseFloat(e.target.value))}
-                        className="studio-slider"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Generate Trigger Button */}
-              <div className="generate-action-box">
-                {isRunning ? (
-                  <div className="generating-status-container">
-                    <div className="computing-spinner-box">
-                      <span className="spinner-large"></span>
-                      <div className="computing-text">
-                        <strong>Calculating thread sequence…</strong>
-                        <span>Optimizing light and dark shadow density across {params.numNails} nails</span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-secondary-light"
-                      onClick={cancel}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    id="btn-main-generate"
-                    type="button"
-                    className="btn btn-primary-dark btn-hero-generate"
-                    onClick={generate}
-                  >
-                    <span>🧵 Generate String Art Preview</span>
-                  </button>
-                )}
               </div>
             </div>
           )}
 
-          {/* ── STATE 3: Generated String Art Preview is Ready ── */}
+          {/* ══════════════════════════════════════════════════════════════
+              STATE 3: Result & Place Order State (isDone)
+              ══════════════════════════════════════════════════════════════ */}
           {isDone && (
             <div className="studio-result-view">
+              {/* Result Top Bar */}
               <div className="result-header">
                 <div className="result-title-box">
                   <span className="badge-success">✓ Generation Complete</span>
-                  <h3 className="result-heading">Your String Art Preview</h3>
+                  <h3 className="result-heading">Your Handcrafted String Art Preview</h3>
                 </div>
                 <div className="result-actions">
                   <button
                     type="button"
-                    className="btn btn-secondary-light btn-sm"
-                    onClick={() => {
-                      onSelectImage(null);
-                    }}
+                    className="btn btn-secondary-light btn-sm btn-try-another-top"
+                    onClick={resetAll}
                   >
                     ← Try another photo
                   </button>
                 </div>
               </div>
 
-              {/* Embedded Canvas */}
-              <div className="result-canvas-container">
-                <CanvasPreview previewData={previewData} />
+              {/* Main Showcase Grid: String Art (Main Focus) + Original Photo & Specs */}
+              <div className="result-showcase-grid">
+                {/* Primary Column: Generated String Art (Main Focus) */}
+                <div className="result-primary-col">
+                  <div className="result-canvas-frame">
+                    <div className="artboard-wood-backdrop">
+                      <CanvasPreview previewData={previewData} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Companion Column: Original Image & Piece Details */}
+                <div className="result-companion-col">
+                  {/* Original Image Preview Card */}
+                  <div className="original-photo-card">
+                    <div className="original-photo-header">
+                      <span className="card-badge">Original Photo</span>
+                      <span className="card-meta">Uploaded Image</span>
+                    </div>
+                    <div className="original-photo-wrap">
+                      <img
+                        src={imagePreviewUrl}
+                        alt="Original source portrait"
+                        className="original-photo-img"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Handcrafted Piece Specifications (Artisan, Non-technical) */}
+                  <div className="product-specs-box">
+                    <div className="spec-row">
+                      <span className="spec-icon">📐</span>
+                      <div className="spec-text">
+                        <strong>50 cm Circular Artboard</strong>
+                        <span>Solid Baltic birch wood with matte finish</span>
+                      </div>
+                    </div>
+
+                    <div className="spec-row">
+                      <span className="spec-icon">🧵</span>
+                      <div className="spec-text">
+                        <strong>100% Tensioned Thread</strong>
+                        <span>Over 1.5 km of continuous unbroken thread</span>
+                      </div>
+                    </div>
+
+                    <div className="spec-row">
+                      <span className="spec-icon">📍</span>
+                      <div className="spec-text">
+                        <strong>Handcrafted Production</strong>
+                        <span>No paint, ink, or print — woven by hand</span>
+                      </div>
+                    </div>
+
+                    <div className="spec-row">
+                      <span className="spec-icon">🖼️</span>
+                      <div className="spec-text">
+                        <strong>Ready to Hang</strong>
+                        <span>Integrated heavy-duty wall mount pre-installed</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ordering Summary Card */}
+                  <div className="order-summary-card">
+                    <div className="order-price-row">
+                      <span className="price-label">Custom Finished Artwork</span>
+                      <span className="price-amount">£175</span>
+                    </div>
+                    <span className="order-delivery-tag">
+                      ✓ Free UK delivery · Dispatches in ~2 weeks
+                    </span>
+
+                    {/* Prominent Place Order CTA Button */}
+                    <button
+                      id="btn-place-order-side"
+                      type="button"
+                      className="btn btn-primary-dark btn-place-order w-full"
+                      onClick={placeOrder}
+                    >
+                      <span>🛍️ Place Your Order</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Specs & Download Card */}
-              <div className="result-specs-card">
-                <div className="spec-metric">
-                  <span className="metric-title">Thread Lines</span>
-                  <span className="metric-val">{stats?.lines?.toLocaleString() || params.maxIterations}</span>
-                </div>
-                <div className="spec-metric">
-                  <span className="metric-title">Board Nails</span>
-                  <span className="metric-val">{params.numNails} nails</span>
-                </div>
-                <div className="spec-metric">
-                  <span className="metric-title">Thread Length</span>
-                  <span className="metric-val">~1.6 km</span>
-                </div>
-                <div className="spec-metric">
-                  <span className="metric-title">Board Size</span>
-                  <span className="metric-val">50 cm circular</span>
-                </div>
-              </div>
+              {/* Clear Bottom CTA Row: "Place Your Order" below the result */}
+              <div className="result-bottom-cta-bar">
+                <button
+                  id="btn-place-order"
+                  type="button"
+                  className="btn btn-primary-dark btn-place-order btn-large"
+                  onClick={placeOrder}
+                >
+                  <span>🛍️ Place Your Order — Custom Handcrafted Piece</span>
+                </button>
 
-              {/* Download Sequence Button */}
-              <div className="result-download-row">
                 <button
                   type="button"
-                  className="btn btn-primary-dark w-full"
-                  onClick={downloadSequence}
+                  className="btn btn-secondary-light btn-try-another-bottom"
+                  onClick={resetAll}
                 >
-                  💾 Download Nail Sequence File (.txt)
+                  ← Try another photo
                 </button>
-                <p className="download-hint">
-                  The sequence contains the exact numerical nail-to-nail path required to string this portrait by hand.
-                </p>
+              </div>
+
+              <div className="result-satisfaction-note">
+                <span>🛡️ 100% Satisfaction Guarantee · Your blueprint is safely preserved for our workshop team</span>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════════════════════
+          Order Placement Modal / Confirmation
+          (Preserves sequence internally for admin/order system)
+          ══════════════════════════════════════════════════════════════════ */}
+      {isOrderPlaced && (
+        <div className="order-modal-backdrop" onClick={closeOrderModal}>
+          <div
+            className="order-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="modal-title"
+          >
+            <div className="order-modal-header">
+              <div className="modal-badge-success">✓ Order Draft Registered</div>
+              <button
+                type="button"
+                className="btn-modal-close"
+                onClick={closeOrderModal}
+                aria-label="Close modal"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="order-modal-body">
+              <h3 id="modal-title" className="order-modal-title">
+                Your String Art Order is Ready!
+              </h3>
+              <p className="order-modal-desc">
+                Your custom string art blueprint and continuous thread sequence have been recorded internally for our master artisan team.
+              </p>
+
+              {/* Order Reference Box */}
+              <div className="order-ref-box">
+                <div className="order-ref-item">
+                  <span className="order-ref-label">Order Reference</span>
+                  <span className="order-ref-val">{orderDraft?.orderId || 'SA-84920'}</span>
+                </div>
+                <div className="order-ref-item">
+                  <span className="order-ref-label">Format</span>
+                  <span className="order-ref-val">50 cm Circular Birch</span>
+                </div>
+                <div className="order-ref-item">
+                  <span className="order-ref-label">Status</span>
+                  <span className="order-ref-val status-ready">Ready for Production</span>
+                </div>
+              </div>
+
+              {/* Comparison Thumbnail */}
+              <div className="order-modal-visuals">
+                <div className="modal-visual-item">
+                  <span className="visual-label">Your Photo</span>
+                  <img src={imagePreviewUrl} alt="Uploaded portrait" className="modal-visual-thumb" />
+                </div>
+                <div className="modal-visual-arrow">➜</div>
+                <div className="modal-visual-item">
+                  <span className="visual-label">Handcrafted Artwork</span>
+                  <div className="modal-visual-thumb string-thumb">
+                    <span>🧵</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="order-modal-notice">
+                <strong>Next Step:</strong> Full payment & address checkout will open in the next release. Your artwork sequence has been saved internally so no re-upload will be needed.
+              </div>
+            </div>
+
+            <div className="order-modal-footer">
+              <button
+                type="button"
+                className="btn btn-primary-dark w-full"
+                onClick={closeOrderModal}
+              >
+                Return to Preview
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary-light w-full"
+                onClick={() => {
+                  closeOrderModal();
+                  resetAll();
+                }}
+              >
+                Try Another Photo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

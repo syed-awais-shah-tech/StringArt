@@ -19,13 +19,18 @@ export default function App() {
     imageFile,
     imagePreviewUrl,
     selectImage,
+    uploadAndGenerate,
     status,
     error,
     generate,
     cancel,
-    downloadSequence,
+    resetAll,
     previewData,
     stats,
+    orderDraft,
+    isOrderPlaced,
+    placeOrder,
+    closeOrderModal,
   } = useStringArt();
 
   const [toasts, setToasts] = useState([]);
@@ -42,7 +47,7 @@ export default function App() {
       addToast('error', error);
     }
     if (status === 'done') {
-      addToast('success', 'Sequence file ready & downloaded!');
+      addToast('success', 'Your custom string art preview is ready!');
     }
   }, [status, error, addToast]);
 
@@ -54,7 +59,9 @@ export default function App() {
       const res = await fetch(src);
       const blob = await res.blob();
       const file = new File([blob], name, { type: blob.type || 'image/png' });
-      selectImage(file);
+      uploadAndGenerate(file);
+      const studio = document.getElementById('preview-studio');
+      if (studio) studio.scrollIntoView({ behavior: 'smooth' });
     } catch (err) {
       console.error('Failed to load example photo', err);
     }
@@ -79,13 +86,18 @@ export default function App() {
         imageFile={imageFile}
         imagePreviewUrl={imagePreviewUrl}
         onSelectImage={selectImage}
+        uploadAndGenerate={uploadAndGenerate}
         status={status}
         error={error}
         generate={generate}
         cancel={cancel}
-        downloadSequence={downloadSequence}
+        resetAll={resetAll}
         previewData={previewData}
         stats={stats}
+        orderDraft={orderDraft}
+        isOrderPlaced={isOrderPlaced}
+        placeOrder={placeOrder}
+        closeOrderModal={closeOrderModal}
       />
 
       {/* 3. How It Works Section */}

@@ -30,11 +30,11 @@ export default function HowItWorks({ onCtaClick }) {
 
         <div className="step-card">
           <div className="step-badge">Step 2</div>
-          <div className="step-icon-box">⚙️</div>
-          <h3 className="step-title">Algorithmic weaving</h3>
+          <div className="step-icon-box">✨</div>
+          <h3 className="step-title">Instant Art Preview</h3>
           <p className="step-desc">
-            Our engine evaluates tens of thousands of potential line paths, finding the exact
-            sequence of 3,000+ straight chords across 200 perimeter nails to render depth and tone.
+            Our preview engine maps out thousands of continuous thread paths across perimeter pins,
+            accurately recreating shadows, contrast, and fine details before placing your order.
           </p>
         </div>
 

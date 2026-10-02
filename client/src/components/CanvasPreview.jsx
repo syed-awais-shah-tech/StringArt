@@ -113,15 +113,22 @@ export default function CanvasPreview({ previewData }) {
 
     stateRef.current.ctx = ctx;
 
-    setUiState((u) => ({ ...u, stepIdx: 0, total: sequence.length, playing: false }));
-  }, [previewData]);
+    // Draw all lines immediately so the finished artwork is visible right away!
+    stateRef.current.prevNails = {};
+    for (let i = 0; i < sequence.length; i++) {
+      drawStep(ctx, sequence[i], nails, scale);
+    }
+    stateRef.current.stepIdx = sequence.length;
+
+    setUiState((u) => ({ ...u, stepIdx: sequence.length, total: sequence.length, playing: false }));
+  }, [previewData, drawStep]);
 
   // ── Animation loop ────────────────────────────────────────────────────────
   const animate = useCallback(() => {
     const s = stateRef.current;
     if (!s.playing || !s.ctx || !s.sequence) return;
 
-    const batchSize = s.speed;
+    const batchSize = s.speed || 25;
     for (let i = 0; i < batchSize; i++) {
       if (s.stepIdx >= s.sequence.length) {
         s.playing = false;
@@ -132,8 +139,7 @@ export default function CanvasPreview({ previewData }) {
       s.stepIdx++;
     }
 
-    // Update UI counter at ~10 fps to avoid excessive React renders
-    if (s.stepIdx % (batchSize * 3) === 0 || s.stepIdx >= s.sequence.length) {
+    if (s.stepIdx % (batchSize * 2) === 0 || s.stepIdx >= s.sequence.length) {
       setUiState((u) => ({ ...u, stepIdx: s.stepIdx }));
     }
 
@@ -141,19 +147,6 @@ export default function CanvasPreview({ previewData }) {
   }, [drawStep]);
 
   // ── Controls ──────────────────────────────────────────────────────────────
-  const togglePlay = useCallback(() => {
-    const s = stateRef.current;
-    if (s.stepIdx >= (s.sequence?.length ?? 0)) return; // already done
-
-    s.playing = !s.playing;
-    setUiState((u) => ({ ...u, playing: s.playing }));
-
-    if (s.playing) {
-      cancelAnimationFrame(s.rafId);
-      s.rafId = requestAnimationFrame(animate);
-    }
-  }, [animate]);
-
   const resetCanvas = useCallback(() => {
     const s = stateRef.current;
     cancelAnimationFrame(s.rafId);
@@ -162,8 +155,9 @@ export default function CanvasPreview({ previewData }) {
     s.prevNails = {};
 
     if (!s.ctx || !previewData) return;
-    const { nails, width, height } = previewData;
+    const { nails } = previewData;
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const canvasSize = canvas.width;
     const scale = s.scale;
 
@@ -189,10 +183,31 @@ export default function CanvasPreview({ previewData }) {
     setUiState((u) => ({ ...u, playing: false, stepIdx: 0 }));
   }, [previewData]);
 
-  const setSpeed = useCallback((v) => {
-    stateRef.current.speed = parseInt(v);
-    setUiState((u) => ({ ...u, speed: parseInt(v) }));
-  }, []);
+  const togglePlay = useCallback(() => {
+    const s = stateRef.current;
+    if (!s.sequence || s.sequence.length === 0) return;
+
+    // If finished, restart weaving animation from 0
+    if (s.stepIdx >= s.sequence.length) {
+      resetCanvas();
+      setTimeout(() => {
+        stateRef.current.playing = true;
+        stateRef.current.speed = 25;
+        setUiState((u) => ({ ...u, playing: true, stepIdx: 0 }));
+        cancelAnimationFrame(stateRef.current.rafId);
+        stateRef.current.rafId = requestAnimationFrame(animate);
+      }, 40);
+      return;
+    }
+
+    s.playing = !s.playing;
+    setUiState((u) => ({ ...u, playing: s.playing }));
+
+    if (s.playing) {
+      cancelAnimationFrame(s.rafId);
+      s.rafId = requestAnimationFrame(animate);
+    }
+  }, [animate, resetCanvas]);
 
   // ── Draw ALL instantly ────────────────────────────────────────────────────
   const drawAll = useCallback(() => {
@@ -202,10 +217,8 @@ export default function CanvasPreview({ previewData }) {
 
     if (!s.ctx || !s.sequence) return;
 
-    // Reset first
     resetCanvas();
 
-    // tiny delay to let the reset paint
     setTimeout(() => {
       const { sequence, nails, scale, ctx } = stateRef.current;
       stateRef.current.prevNails = {};
@@ -214,7 +227,7 @@ export default function CanvasPreview({ previewData }) {
       }
       stateRef.current.stepIdx = sequence.length;
       setUiState((u) => ({ ...u, playing: false, stepIdx: sequence.length }));
-    }, 30);
+    }, 20);
   }, [resetCanvas, drawStep]);
 
   // Cleanup RAF on unmount
@@ -231,7 +244,7 @@ export default function CanvasPreview({ previewData }) {
     );
   }
 
-  const pct = uiState.total > 0 ? (uiState.stepIdx / uiState.total) * 100 : 0;
+  const isComplete = uiState.stepIdx >= uiState.total && uiState.total > 0;
 
   return (
     <div className="canvas-section">
@@ -239,56 +252,37 @@ export default function CanvasPreview({ previewData }) {
         <canvas ref={canvasRef} className="string-canvas" />
       </div>
 
-      {/* Progress bar */}
-      <div className="progress-bar-track">
-        <div className="progress-bar-fill" style={{ width: `${pct.toFixed(1)}%` }} />
-      </div>
-
-      {/* Controls */}
+      {/* Clean controls for customer preview */}
       <div className="canvas-controls">
         <div className="canvas-controls-left">
           <button
             id="btn-play-pause"
-            className="btn btn-primary-dark"
+            type="button"
+            className="btn btn-secondary-light btn-sm"
             onClick={togglePlay}
-            disabled={uiState.stepIdx >= uiState.total}
-            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
           >
-            {uiState.playing ? '⏸ Pause' : '▶ Play'}
+            {uiState.playing
+              ? '⏸ Pause'
+              : isComplete
+              ? '▶ Replay Weaving'
+              : '▶ Continue Weaving'}
           </button>
-          <button
-            id="btn-reset"
-            className="btn btn-secondary-light"
-            onClick={resetCanvas}
-            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-          >
-            ↺ Reset
-          </button>
-          <button
-            id="btn-draw-all"
-            className="btn btn-secondary-light"
-            onClick={drawAll}
-            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-          >
-            ⚡ Show All
-          </button>
+
+          {!isComplete && (
+            <button
+              id="btn-draw-all"
+              type="button"
+              className="btn btn-secondary-light btn-sm"
+              onClick={drawAll}
+            >
+              ⚡ Complete View
+            </button>
+          )}
         </div>
 
         <div className="canvas-controls-right">
-          <span className="speed-label">Speed</span>
-          <input
-            type="range"
-            className="slider"
-            min={1}
-            max={200}
-            step={1}
-            value={uiState.speed}
-            onChange={(e) => setSpeed(e.target.value)}
-            style={{ width: 90, '--fill-pct': `${((uiState.speed - 1) / 199) * 100}%` }}
-            title={`${uiState.speed}× speed`}
-          />
           <span className="canvas-step-label">
-            {uiState.stepIdx.toLocaleString()} / {uiState.total.toLocaleString()} lines
+            {isComplete ? '✓ Full Detail Rendered' : `${uiState.stepIdx.toLocaleString()} threads placed`}
           </span>
         </div>
       </div>
