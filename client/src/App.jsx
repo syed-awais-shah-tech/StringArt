@@ -1,12 +1,15 @@
 /**
- * App.jsx — Root application component
- * Layout: header | sidebar (controls) | main (upload + canvas)
+ * App.jsx — Public Customer-Facing Business Website
+ * Inspired by stringboard.co.uk
  */
-import React, { useState, useEffect } from 'react';
-import ControlPanel, { getActiveColors } from './components/ControlPanel.jsx';
-import ImageUpload from './components/ImageUpload.jsx';
-import CanvasPreview from './components/CanvasPreview.jsx';
-import GenerateButton from './components/GenerateButton.jsx';
+import React, { useState, useEffect, useCallback } from 'react';
+import Navbar from './components/Navbar.jsx';
+import HeroGenerator from './components/HeroGenerator.jsx';
+import HowItWorks from './components/HowItWorks.jsx';
+import Gallery from './components/Gallery.jsx';
+import PricingPreview from './components/PricingPreview.jsx';
+import FAQ from './components/FAQ.jsx';
+import Footer from './components/Footer.jsx';
 import { useStringArt } from './hooks/useStringArt.js';
 
 export default function App() {
@@ -27,108 +30,87 @@ export default function App() {
 
   const [toasts, setToasts] = useState([]);
 
-  // Sync feature highlight colors into params.colors
-  useEffect(() => {
-    const colors = getActiveColors(params.featureHighlight);
-    setParam('colors', colors);
-  }, [params.featureHighlight]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Show toast on error or done
-  useEffect(() => {
-    if (status === 'error' && error) {
-      addToast('error', `⚠️ ${error}`);
-    }
-    if (status === 'done') {
-      addToast('success', '✅ Sequence file downloaded!');
-    }
-  }, [status, error]);
-
-  function addToast(type, msg) {
+  const addToast = useCallback((type, msg) => {
     const id = Date.now();
     setToasts((t) => [...t, { id, type, msg }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000);
-  }
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4500);
+  }, []);
+
+  // Show toast notifications on error or completion
+  useEffect(() => {
+    if (status === 'error' && error) {
+      addToast('error', error);
+    }
+    if (status === 'done') {
+      addToast('success', 'Sequence file ready & downloaded!');
+    }
+  }, [status, error, addToast]);
+
+  // Load example photo helper (e.g. from gallery or sample buttons)
+  const handleLoadExample = async (type = 'portrait') => {
+    try {
+      const src = type === 'dog' ? '/gallery/dog_original.jpg' : '/gallery/input.png';
+      const name = type === 'dog' ? 'golden-retriever-sample.jpg' : 'portrait-sample.png';
+      const res = await fetch(src);
+      const blob = await res.blob();
+      const file = new File([blob], name, { type: blob.type || 'image/png' });
+      selectImage(file);
+    } catch (err) {
+      console.error('Failed to load example photo', err);
+    }
+  };
+
+  const handleUploadNavClick = () => {
+    const el = document.getElementById('hero-file-input');
+    if (el) {
+      el.click();
+    }
+  };
 
   return (
-    <div className="app">
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <header className="app-header">
-        <div className="app-logo">
-          <div className="app-logo-icon">🧵</div>
-          <span className="app-logo-text">StringArt</span>
-          <span className="app-logo-badge">ERN Stack</span>
-        </div>
-        <div className="app-header-actions">
-          <span>Thread Art Generator</span>
-          <span style={{ color: 'var(--border-subtle)' }}>·</span>
-          <a
-            href="https://github.com/vxjnc/StringArt"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: 'var(--accent-3)', textDecoration: 'none', fontSize: '0.85rem' }}
-          >
-            GitHub ↗
-          </a>
-        </div>
-      </header>
+    <div className="website-root">
+      {/* 1. Header / Navbar */}
+      <Navbar onUploadClick={handleUploadNavClick} />
 
-      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-      <aside className="sidebar">
-        <ControlPanel params={params} setParam={setParam} />
-      </aside>
+      {/* 2. Hero Section + Interactive Generator */}
+      <HeroGenerator
+        params={params}
+        setParam={setParam}
+        imageFile={imageFile}
+        imagePreviewUrl={imagePreviewUrl}
+        onSelectImage={selectImage}
+        status={status}
+        error={error}
+        generate={generate}
+        cancel={cancel}
+        downloadSequence={downloadSequence}
+        previewData={previewData}
+        stats={stats}
+      />
 
-      {/* ── Main Area ───────────────────────────────────────────────────── */}
-      <main className="main-area">
-        {/* Image Upload */}
-        <div className="panel">
-          <div className="panel-header">
-            <div className="panel-icon">📁</div>
-            <span className="panel-title">Source Image</span>
-          </div>
-          <ImageUpload
-            imageFile={imageFile}
-            imagePreviewUrl={imagePreviewUrl}
-            onSelect={selectImage}
-          />
-        </div>
+      {/* 3. How It Works Section */}
+      <HowItWorks />
 
-        {/* Generate Button + Status */}
-        <div className="panel">
-          <div className="panel-header">
-            <div className="panel-icon">🚀</div>
-            <span className="panel-title">Generate</span>
-          </div>
+      {/* 4. Examples / Gallery Section */}
+      <Gallery onLoadExample={handleLoadExample} />
 
-          {/* Hint about processing time */}
-          <div style={{
-            fontSize: '0.78rem',
-            color: 'var(--text-muted)',
-            marginBottom: 'var(--spacing-md)',
-            lineHeight: 1.5,
-          }}>
-            ⏱️ Generation runs on the Node.js server. Time depends on nails ×
-            max-lines × threads. Suggested: 200 nails, 3 000 lines.
-          </div>
+      {/* 5. Art, Kits & Offerings */}
+      <PricingPreview />
 
-          <GenerateButton
-            status={status}
-            stats={stats}
-            onGenerate={generate}
-            onCancel={cancel}
-            onDownload={downloadSequence}
-            hasImage={!!imageFile}
-          />
-        </div>
+      {/* 6. FAQ Section */}
+      <FAQ />
 
-        {/* Canvas Preview */}
-        <CanvasPreview previewData={previewData} />
-      </main>
+      {/* 7. Footer */}
+      <Footer />
 
-      {/* ── Toast Notifications ──────────────────────────────────────────── */}
+      {/* Floating Toast Notification Container */}
       <div className="toast-container" aria-live="polite">
         {toasts.map((t) => (
           <div key={t.id} className={`toast ${t.type}`}>
-            {t.msg}
+            <span className="toast-icon">
+              {t.type === 'success' ? '✓' : '⚠️'}
+            </span>
+            <span className="toast-text">{t.msg}</span>
           </div>
         ))}
       </div>

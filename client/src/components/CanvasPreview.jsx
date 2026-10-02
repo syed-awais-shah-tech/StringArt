@@ -11,10 +11,11 @@
  */
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 
-const NAIL_RADIUS   = 2.5;
+const NAIL_RADIUS   = 2.2;
 const BOARD_PADDING = 8;   // px inside canvas edge
 const BG_COLOR      = '#ffffff';
-const NAIL_COLOR    = '#c084fc'; // light violet
+const NAIL_COLOR    = '#52525b'; // zinc metallic pin color
+const BORDER_COLOR  = 'rgba(0, 0, 0, 0.15)';
 
 export default function CanvasPreview({ previewData }) {
   const canvasRef   = useRef(null);
@@ -96,8 +97,8 @@ export default function CanvasPreview({ previewData }) {
     const r  = (canvasSize - BOARD_PADDING * 2) / 2;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(99,102,241,0.3)';
-    ctx.lineWidth   = 1;
+    ctx.strokeStyle = BORDER_COLOR;
+    ctx.lineWidth   = 1.2;
     ctx.stroke();
 
     // Draw nails
@@ -174,8 +175,8 @@ export default function CanvasPreview({ previewData }) {
     const r  = (canvasSize - BOARD_PADDING * 2) / 2;
     s.ctx.beginPath();
     s.ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    s.ctx.strokeStyle = 'rgba(99,102,241,0.3)';
-    s.ctx.lineWidth   = 1;
+    s.ctx.strokeStyle = BORDER_COLOR;
+    s.ctx.lineWidth   = 1.2;
     s.ctx.stroke();
 
     s.ctx.fillStyle = NAIL_COLOR;
@@ -248,7 +249,7 @@ export default function CanvasPreview({ previewData }) {
         <div className="canvas-controls-left">
           <button
             id="btn-play-pause"
-            className="btn btn-primary"
+            className="btn btn-primary-dark"
             onClick={togglePlay}
             disabled={uiState.stepIdx >= uiState.total}
             style={{ padding: '8px 16px', fontSize: '0.85rem' }}
@@ -257,7 +258,7 @@ export default function CanvasPreview({ previewData }) {
           </button>
           <button
             id="btn-reset"
-            className="btn btn-secondary"
+            className="btn btn-secondary-light"
             onClick={resetCanvas}
             style={{ padding: '8px 16px', fontSize: '0.85rem' }}
           >
@@ -265,7 +266,7 @@ export default function CanvasPreview({ previewData }) {
           </button>
           <button
             id="btn-draw-all"
-            className="btn btn-secondary"
+            className="btn btn-secondary-light"
             onClick={drawAll}
             style={{ padding: '8px 16px', fontSize: '0.85rem' }}
           >
